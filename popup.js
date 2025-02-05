@@ -1,5 +1,6 @@
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "showResults") {
-        document.getElementById("results").innerText = message.results;
-    }
+document.addEventListener("DOMContentLoaded", function () {
+    chrome.storage.local.get("recommendations", (data) => {
+        let resultsContainer = document.getElementById("results");
+        resultsContainer.innerText = data.recommendations || "No recommendations found.";
+    });
 });

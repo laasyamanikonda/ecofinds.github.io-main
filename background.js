@@ -1,11 +1,21 @@
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.action === "extractData") {
-        let product = message.data.productName;
-        let price = message.data.price;
+        let { productName, price } = message.data;
 
-        if (!product) return;
+        if (!productName) return;
 
-        // Query OpenAI for sustainable alternatives
+        let alternatives = await fetchAlternatives(productName, price);
+        
+        chrome.storage.local.set({ recommendations: alternatives }, () => {
+            console.log("Alternatives saved.");
+        });
+
+        chrome.runtime.sendMessage({ action: "showResults", results: alternatives });
+    }
+});
+
+async function fetchAlternatives(product, price) {
+    try {
         let response = await fetch("https://api.openai.com/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -14,11 +24,17 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             },
             body: JSON.stringify({
                 model: "gpt-4",
-                messages: [{ role: "system", content: `Find sustainable and minority-owned alternatives for "${product}" under price ${price}` }]
+                messages: [
+                    { role: "system", content: "You are a product recommendation assistant." },
+                    { role: "user", content: `Find sustainable and minority-owned alternatives for "${product}" under ${price}.` }
+                ]
             })
         });
 
         let data = await response.json();
-        chrome.runtime.sendMessage({ action: "showResults", results: data.choices[0].message.content });
+        return data.choices[0].message.content;
+    } catch (error) {
+        console.error("Error fetching alternatives:", error);
+        return "Error finding alternatives. Try again!";
     }
-});
+}
